@@ -3,7 +3,7 @@ defmodule PtrProject1Enhanced.MixProject do
 
   def project do
     [
-      app: :ptr_project_1_enhanced,
+      app: :build,
       version: "0.1.0",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
