@@ -9,6 +9,7 @@ defmodule SseClient do
     boolean: :magenta,
     nil: :magenta
   ]
+
   @format [
     pretty: true,
     structs: true,
@@ -28,48 +29,34 @@ defmodule SseClient do
 
   @impl true
   def init(url) do
-    Logger.alert("[SSE] Trying to connect to #{url}", @format)
-
-    # 👇 Get the Stream Data
-    HTTPoison.get!(
-      url,
-      [],
-      recv_timeout: :infinity,
-      stream_to: self()
-    )
-
-    {:ok, nil}
+    HTTPoison.get!(url, [], recv_timeout: :infinity, stream_to: self())
+    {:ok, url}
   end
 
   @impl true
-  def handle_info(%HTTPoison.AsyncChunk{chunk: "event: \"message\"\n\ndata: {\"message\": panic}\n\n"}, _state) do
-    Logger.warning("[SSE] Panik Chunk Received", @format)
-
-    {:noreply, nil}
+  def handle_info(%HTTPoison.AsyncChunk{chunk: ""}, url) do
+    HTTPoison.get!(url, [], recv_timeout: :infinity, stream_to: self())
+    {:noreply, url}
   end
 
   @impl true
-  def handle_info(%HTTPoison.AsyncChunk{chunk: chunk}, _state) do
-    case Regex.run(~r/data: ({.+})\n\n$/, chunk) do
-      # Good Response.
-      [_, tweet] ->
-        with {:ok, result} <- Poison.decode(tweet) do
-          Logger.info("SUCCESS")
-        end
-
-      # Bad Response.
-      nil -> Logger.error("[SSE] Don't know how to parse received chunk")
-    end
-
-    {:noreply, nil}
+  def handle_info(%HTTPoison.AsyncChunk{chunk: "event: \"message\"\n\ndata: {\"message\": panic}\n\n"}, url) do
+    # TODO: Restart Actor.
+    {:noreply, url}
   end
 
-  def handle_info(%HTTPoison.AsyncStatus{} = status, _state) do
-    Logger.info("[SSE] Connection Status - #{inspect(status)}")
+  @impl true
+  def handle_info(%HTTPoison.AsyncChunk{chunk: data}, url) do
+    [_, json] = Regex.run(~r/data: ({.+})\n\n$/, data)
+    {:ok, result} = json |> Poison.decode()
 
-    {:noreply, nil}
+    StreamSupervisor.get_worker(LoadBalancer)
+    |> send(result)
+
+    {:noreply, url}
   end
 
+  @impl true
   def handle_info(_, url) do
     {:noreply, url}
   end

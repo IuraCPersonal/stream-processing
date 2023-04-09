@@ -15,6 +15,28 @@ defmodule StreamSupervisor do
 
   def init(_init_args) do
     children = [
+      # Reducer Actor
+      %{
+        id: Reducer,
+        start: {Reducer, :start_link, [Reducer]}
+      },
+      # Generic Worker Pool:
+      WorkerPoolManager.get_worker_pool(
+        :printer,
+        3
+      ),
+
+      WorkerPoolManager.get_worker_pool(
+        :sentiment_scorer,
+        3
+      ),
+
+      WorkerPoolManager.get_worker_pool(
+        :engagement_ratio_scorer,
+        3
+      ),
+      # Load Balancer Actor:
+      {LoadBalancer, :ok},
       # Actors to read SSE Streams:
       %{
         id: :sseclient_1,
