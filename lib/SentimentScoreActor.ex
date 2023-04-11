@@ -18,7 +18,7 @@ defmodule SentimentScoreActor do
 
   def start_link(id) do
     # 🦄 Bookmark: Logger.
-    Logger.warning("[SSE] Sentiment Score Actor starting...", @format)
+    Logger.notice("[SSE] Sentiment Score Actor starting...", @format)
 
     GenServer.start_link(
       __MODULE__,
